@@ -1,4 +1,7 @@
 const { StatusCodes } = require('http-status-codes');
+const {Op} = require("sequelize");
+const { ENUMS } = require('../utils/common');
+const { BOOKED,CANCELLED } = ENUMS.BOOKING_STATUS;
 
 const { Booking } = require('../models');
 const CrudRepository = require('./crud-repository');
@@ -15,7 +18,7 @@ class BookingRepository extends CrudRepository {
     }
 
     async get(data, transaction) {
-        const response = await this.model.findByPk(data, {transaction: transaction});
+        const response = await Booking.findByPk(data, {transaction: transaction});
         if(!response){
             throw new AppError('Not able to find this resourse',StatusCodes.NOT_FOUND);
         }
@@ -23,11 +26,36 @@ class BookingRepository extends CrudRepository {
     }   
 
     async update(id, data, transaction){ 
-        const response = await this.model.update(data, {
+        const response = await Booking.update(data, {
             where: {
                 id: id
             }
         }, {transaction: transaction});
+        return response;
+    }
+
+    async cancelOldBookings(timestamp) {
+        const response = await Booking.update({status:CANCELLED},{
+            where: {
+                    [Op.and]: [
+                        {
+                            createdAt: {
+                                [Op.lt]: timestamp
+                            }
+                        },
+                        {
+                            status:{
+                                [Op.ne]: BOOKED
+                            }
+                        },
+                        {
+                            status:{
+                                [Op.ne]: CANCELLED
+                            }
+                        }
+                    ]
+            }
+        });
         return response;
     }
 }
