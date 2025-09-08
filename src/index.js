@@ -1,10 +1,13 @@
 const express = require('express');
 
-const { ServerConfig, Logger } = require('./config');
+const { ServerConfig } = require('./config');
+const cors = require('cors');
 const apiRoutes = require('./routes');
 const CRON = require('./utils/common/cron-jobs')
 
 const app = express();
+
+app.use(cors({ origin: "*" }));
 
 app.use(express.json());
 app.use(express.urlencoded({extended: true}));
