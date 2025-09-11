@@ -12,6 +12,7 @@ const { BOOKED,CANCELLED } = ENUMS.BOOKING_STATUS;
 const bookingRepository = new BookingRepository();
 
 async function createBooking(data){
+    console.log("hey am here in service",data);
     const transaction = await db.sequelize.transaction();
     try{
         const flight = await axios.get(`${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}`);
