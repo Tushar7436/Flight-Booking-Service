@@ -10,7 +10,8 @@ async function createBooking(req, res) {
         const response = await BookingService.createBooking({
             flightId: req.body.flightId,
             userId: req.body.userId,
-            noOfSeats: req.body.noOfSeats
+            noOfSeats: req.body.noOfSeats,
+            recipientEmail: req.body.recipientEmail,
         });
         SuccessResponse.data = response;
         console.log(response);
@@ -32,12 +33,13 @@ async function makePayment(req, res) {
         if(!idempotencyKey || inMemDb[idempotencyKey]) {
             return res
                 .status(StatusCodes.BAD_REQUEST)
-                .json({message: 'Cannot retry on a successful payment'});
+                .json({message: 'Cannot retry on a successful payment or not send access key'});
         }
         const response = await BookingService.makePayment({
             totalCost: req.body.totalCost,
             userId: req.body.userId,
-            bookingId: req.body.bookingId 
+            bookingId: req.body.bookingId,
+            recipientEmail: req.body.recipientEmail,
         });
         inMemDb[idempotencyKey] = idempotencyKey;
         SuccessResponse.data = response;

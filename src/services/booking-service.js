@@ -1,5 +1,5 @@
 const axios = require('axios');
-const { ServerConfig } = require('../config');
+const { ServerConfig, Queue } = require('../config');
 const  AppError  = require('../utils/errors/app-error');
 
 const { BookingRepository } = require('../repositories');
@@ -12,7 +12,7 @@ const { BOOKED,CANCELLED } = ENUMS.BOOKING_STATUS;
 const bookingRepository = new BookingRepository();
 
 async function createBooking(data){
-    console.log("hey am here in service",data);
+
     const transaction = await db.sequelize.transaction();
     try{
         const flight = await axios.get(`${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}`);
@@ -28,7 +28,12 @@ async function createBooking(data){
         await axios.patch(`${ServerConfig.FLIGHT_SERVICE}/api/v1/flights/${data.flightId}/seats`,{
             seats: data.noOfSeats
         });
-
+        console.log(data.recipientEmail);
+        Queue.sendData({
+            recipientEmail: data.recipientEmail,
+            subject: 'lumenairways: Your Flight Booking Confirmation',
+            text: `You have confirmed booking tickets`
+        })
         await transaction.commit();
         return booking;
     }catch(error){
@@ -58,6 +63,14 @@ async function makePayment(data){
         }
         // we assume here that payment is successful
         await bookingRepository.update(data.bookingId, {status: BOOKED}, transaction);
+        
+        console.log(data.recipientEmail);
+        Queue.sendData({
+            recipientEmail: data.recipientEmail,
+            subject: 'lumenairways: Your Flight Booking Confirmation',
+            text: `Booking ID: ${bookingDetails.id}` 
+        });
+
         await transaction.commit();
     }catch(error){
         console.log(error);
