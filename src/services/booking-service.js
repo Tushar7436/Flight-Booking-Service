@@ -29,6 +29,11 @@ async function createBooking(data){
             seats: data.noOfSeats
         });
         console.log(data.recipientEmail);
+        Queue.sendData({
+            recipientEmail: data.recipientEmail,
+            subject: 'lumenairways: Your Flight Booking Confirmation',
+            text: `You have confirmed booking tickets`
+        })
         await transaction.commit();
         return booking;
     }catch(error){
