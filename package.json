@@ -1,5 +1,6 @@
 {
   "dependencies": {
+    "@vercel/speed-insights": "^1.2.0",
     "amqplib": "^0.10.9",
     "axios": "^1.11.0",
     "cors": "^2.8.5",
