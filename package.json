@@ -4,6 +4,7 @@
     "amqplib": "^0.10.9",
     "axios": "^1.11.0",
     "cors": "^2.8.5",
+    "crypto": "^1.0.1",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "express-router": "^0.0.1",
@@ -11,6 +12,7 @@
     "mysql2": "^3.14.3",
     "node": "^24.6.0",
     "node-cron": "^4.2.1",
+    "razorpay": "^2.9.6",
     "sequelize": "^6.37.7",
     "sequelize-cli": "^6.6.3",
     "winston": "^3.17.0"

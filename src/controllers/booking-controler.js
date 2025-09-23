@@ -44,8 +44,42 @@ async function makePayment(req, res) {
         inMemDb[idempotencyKey] = idempotencyKey;
         SuccessResponse.data = response;
         return res 
-                    .status(StatusCodes.OK)
-                    .json({message:'Sucessfully booked'});
+                .status(StatusCodes.OK)
+                .json({
+                    message: "Order created successfully",
+                    data: {
+                    orderId: response.orderId,
+                    amount: response.amount,
+                    currency: response.currency,
+                    bookingId: response.bookingId,
+                    key: response.key, // frontend needs this
+                    },
+                });
+    } catch(error){
+       ErrorResponse.error = error;
+        return res
+                .status(StatusCodes.INTERNAL_SERVER_ERROR)
+                .json(ErrorResponse);
+    }
+}
+
+async function verifyPayment(req, res) {
+    console.log("reqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",req);
+    console.log("ressssssssssssssssssssssssssssssssssssssssssss",res);
+    try{
+        const response = await BookingService.verifyPayment({
+            razorpay_order_id: req.body.razorpay_order_id,
+            razorpay_payment_id: req.body.razorpay_payment_id,
+            bookingId: req.body.bookingId,
+            razorpay_signature: req.body.razorpay_signature,
+        });
+        inMemDb[idempotencyKey] = idempotencyKey;
+        SuccessResponse.data = response;
+        return res 
+                .status(StatusCodes.OK)
+                .json({
+                    message: "Ticket Booked successfully",
+                });
     } catch(error){
        ErrorResponse.error = error;
         return res
@@ -56,6 +90,7 @@ async function makePayment(req, res) {
 
 module.exports = {
     createBooking,
-    makePayment
+    makePayment,
+    verifyPayment
 }
  

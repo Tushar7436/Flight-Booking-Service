@@ -9,6 +9,15 @@ const { StatusCodes } = require('http-status-codes');
 const { ENUMS } = require('../utils/common');
 const { BOOKED,CANCELLED } = ENUMS.BOOKING_STATUS;
 
+const Razorpay = require("razorpay");
+const crypto = require("crypto");
+
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET
+});
+
+
 const bookingRepository = new BookingRepository();
 
 async function createBooking(data){
@@ -29,11 +38,11 @@ async function createBooking(data){
             seats: data.noOfSeats
         });
         console.log(data.recipientEmail);
-        Queue.sendData({
-            recipientEmail: data.recipientEmail,
-            subject: 'lumenairways: Your Flight Booking Confirmation',
-            text: `You have confirmed booking tickets`
-        })
+        // Queue.sendData({
+        //     recipientEmail: data.recipientEmail,
+        //     subject: 'lumenairways',
+        //     text: `we know you have a flight in mind and we will server your tickets after your payment confirmation`
+        // })
         await transaction.commit();
         return booking;
     }catch(error){
@@ -43,15 +52,15 @@ async function createBooking(data){
 }
 
 async function makePayment(data){
-    const transaction = await db.sequelize.transaction();
+
     try{
-        const bookingDetails = await bookingRepository.get(data.bookingId, transaction);
+        const bookingDetails = await bookingRepository.get(data.bookingId);
         if(bookingDetails.status == CANCELLED) {
             throw new AppError('The booking time has expired', StatusCodes.BAD_REQUEST);
         }
         const bookingTime = new Date(bookingDetails.createdAt);
         const currentTime = new Date();
-        if(currentTime - bookingTime > 240000) {
+        if(currentTime - bookingTime > 600000) {
             await cancelBooking(data.bookingId);
             throw new AppError('The booking time expired', StatusCodes.BAD_REQUEST);
         }
@@ -61,23 +70,61 @@ async function makePayment(data){
         if(bookingDetails.userId != data.userId) {
             throw new AppError('The user corresponding to the booking doesnot match', StatusCodes.BAD_REQUEST);
         }
-        // we assume here that payment is successful
-        await bookingRepository.update(data.bookingId, {status: BOOKED}, transaction);
-        
-        console.log(data.recipientEmail);
-        Queue.sendData({
-            recipientEmail: data.recipientEmail,
-            subject: 'lumenairways: Your Flight Booking Confirmation',
-            text: `Booking ID: ${bookingDetails.id}` 
-        });
+        // Razorpay order
+        const options = {
+            amount: bookingDetails.totalCost * 100, // amount in paise
+            currency: "INR",
+            receipt: `receipt_order_${bookingDetails.id}`,
+        };
 
-        await transaction.commit();
-    }catch(error){
-        console.log(error);
-        await transaction.rollback();
+        const order = await razorpay.orders.create(options);
+
+        // Return order details to frontend 
+        return {
+            orderId: order.id,
+            amount: order.amount,
+            currency: order.currency,
+            bookingId: bookingDetails.id,
+            key: process.env.RAZORPAY_KEY_ID,
+        };
+    } catch (error) {
+        console.log("makePayment error:", error);
         throw error;
     }
 }
+
+async function verifyPayment(data) {
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = data;
+  
+    const body = razorpay_order_id + "|" + razorpay_payment_id;
+    const expectedSignature = crypto
+      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
+      .update(body.toString())
+      .digest("hex");
+  
+    if (expectedSignature !== razorpay_signature) {
+      await cancelBooking(bookingId); // rollback seats, mark CANCELLED
+      throw new AppError("Invalid payment signature", 400);
+    }
+  
+    const transaction = await db.sequelize.transaction();
+    try {
+      await bookingRepository.update(bookingId, { status: BOOKED }, transaction);
+  
+    //   Queue.sendData({
+    //     recipientEmail: data.recipientEmail,
+    //     subject: "Lumen Airways: Flight Booking Confirmed",
+    //     text: `Booking ID: ${bookingId} is confirmed`
+    //   });
+  
+      await transaction.commit();
+      return { success: true, bookingId };
+    } catch (error) {
+      await transaction.rollback();
+      throw error;
+    }
+  }
+  
 
 async function cancelBooking(bookingId) {
     const transaction = await db.sequelize.transaction();
@@ -116,5 +163,6 @@ async function cancelOldBookings(){
 module.exports={
     createBooking,
     makePayment,
+    verifyPayment,
     cancelOldBookings
 }
