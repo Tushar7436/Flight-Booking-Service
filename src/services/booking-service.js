@@ -95,35 +95,37 @@ async function makePayment(data){
 
 async function verifyPayment(data) {
     const { razorpay_order_id, razorpay_payment_id, razorpay_signature, bookingId } = data;
-  
+    const secret = process.env.RAZORPAY_KEY_SECRET;
     const body = razorpay_order_id + "|" + razorpay_payment_id;
     const expectedSignature = crypto
-      .createHmac("sha256", process.env.RAZORPAY_KEY_SECRET)
-      .update(body.toString())
-      .digest("hex");
-  
+        .createHmac("sha256", secret) 
+        .update(body.toString())
+        .digest("hex");
     if (expectedSignature !== razorpay_signature) {
-      await cancelBooking(bookingId); // rollback seats, mark CANCELLED
-      throw new AppError("Invalid payment signature", 400);
+        await cancelBooking(bookingId); // rollback seats, mark CANCELLED
+        throw new AppError("Invalid payment signature", 400);
     }
-  
     const transaction = await db.sequelize.transaction();
+    
     try {
-      await bookingRepository.update(bookingId, { status: BOOKED }, transaction);
-  
-    //   Queue.sendData({
-    //     recipientEmail: data.recipientEmail,
-    //     subject: "Lumen Airways: Flight Booking Confirmed",
-    //     text: `Booking ID: ${bookingId} is confirmed`
-    //   });
-  
-      await transaction.commit();
-      return { success: true, bookingId };
+        await bookingRepository.update(bookingId, { status: BOOKED }, transaction);
+        
+        // Email Queue (uncomment when ready)
+        // console.log("Action: Sending confirmation email data to queue.");
+        // Queue.sendData({
+        //     recipientEmail: data.recipientEmail,
+        //     subject: "Lumen Airways: Flight Booking Confirmed",
+        //     text: `Booking ID: ${bookingId} is confirmed`
+        // });
+        
+        await transaction.commit();
+        return { success: true, bookingId };
     } catch (error) {
-      await transaction.rollback();
-      throw error;
+        console.error("Database Transaction FAILED. Rolling back changes.");
+        await transaction.rollback();
+        throw error;
     }
-  }
+}
   
 
 async function cancelBooking(bookingId) {

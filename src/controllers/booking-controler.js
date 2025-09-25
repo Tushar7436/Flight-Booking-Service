@@ -64,8 +64,6 @@ async function makePayment(req, res) {
 }
 
 async function verifyPayment(req, res) {
-    console.log("reqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq",req);
-    console.log("ressssssssssssssssssssssssssssssssssssssssssss",res);
     try{
         const response = await BookingService.verifyPayment({
             razorpay_order_id: req.body.razorpay_order_id,
@@ -73,7 +71,6 @@ async function verifyPayment(req, res) {
             bookingId: req.body.bookingId,
             razorpay_signature: req.body.razorpay_signature,
         });
-        inMemDb[idempotencyKey] = idempotencyKey;
         SuccessResponse.data = response;
         return res 
                 .status(StatusCodes.OK)
